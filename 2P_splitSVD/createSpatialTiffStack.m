@@ -22,11 +22,10 @@ else
 end
 
 img_stack=[];
-for i=1:25
+for i=1:40
     % smoothen and increase the contrast of image stack
     img_stack(:,:,i)=imadjust(imgaussfilt(mat2gray(reshape(U(:,i),512,512))));
 end
-% name='JG1221_190516_field2_stim_00001_';
 try
     direct = configPath();
     cd(direct.home_2p)

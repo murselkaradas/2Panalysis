@@ -64,7 +64,6 @@ for s=1:length(sess_used)
     fprintf('line 57 s=%d, sess=%d, name_sess = %s\n',s,sess,name_sess)
     Names = dir([strcat(name_sess,'*.tif')]);
     Names={Names.name}';
-    Names{1}
     sv=[];
     for i=1:numel(Names)
         j=str2num(Names{i}(end-5:end-4));%remove .tif from names
