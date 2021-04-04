@@ -1,7 +1,6 @@
 % function [U,SV,svals]=SVD_2p_cluster(name,sess_used)
 function []=SVD_2p_cluster_WS(name, Ncolor, num_svals_1st, num_svals_2nd)
 %Compression of motion corrected tiffstack using SVD
-% name='/gpfs/scratch/nakayh01/2P_Data/JG24831/JG24831_190126_field1_odorloc_14x_00001_00001.tif'
 % name='C:\Users\hnaka\Dropbox\MATLAB\2P\2P_data\aligned\JG1221_190516_field2_stim_00001_00001.tif'
 
 [filepath,name2,ext] = fileparts(name) ;

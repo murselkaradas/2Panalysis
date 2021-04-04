@@ -4,7 +4,7 @@ function [roiMask_id,roiMask_stack]=create_ROImask_manual(cam_size)
 
 
 supportedtypes={'*.zip','ZIPP Files'};
-[fname,pname,typeind]=uigetfile(supportedtypes,'Choose Calibration image','V:\DMDPatterns');
+[fname,pname,typeind]=uigetfile(supportedtypes,'Select ROI','V:\DMDPatterns');
 
 strROIArchiveFilename= fullfile(pname, fname);
 [sROI] = ReadImageJROI(strROIArchiveFilename);
