@@ -27,7 +27,7 @@ F = imread(fullfile(pname, fname));
 [m,n,o] = size(F);      
 figure;
 
-img = imagesc(log(double(F)));
+img = imagesc((double(F)));
 colormap(gray);
 title('Choose reference points in right order');
 pts=ginput_modified(3);

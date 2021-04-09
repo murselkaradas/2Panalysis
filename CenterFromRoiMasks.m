@@ -1,12 +1,19 @@
-function []=CenterFromRoiMasks(roiMask,cell_ids,opt)
+function []=CenterFromRoiMasks(roiMask,cell_ids,opt,arg1, arg2)
 %Renamed from CenterFromGlomLabel.m
 %Input is roiMask / Counting mask whose value is 0-n and non-zero
 %components form patches
 %This function calculate the center of mass of each patch and numbering in
 %in figures
+if ~exist('arg1','var')
+arg1='r';
+end
+if ~exist('arg2','var')
+arg2=8;
+end   
+text_c= arg1;
+text_size = arg2;
 
-text_size=8;
-text_c='r';
+
 num=max(roiMask(:));
 
 for i=1:num
