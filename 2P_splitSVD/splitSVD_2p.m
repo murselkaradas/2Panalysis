@@ -1,24 +1,33 @@
 function [U,SV,svals]=splitSVD_2p(frames,varargin)
-%Modified from splitSVD for analyzing 2p data
-%This function is to conduct SVD cleaning to video frames
-%Based on 
-% Spontaneous behaviors drive multidimensional, brain-wide neural activity
-% Carsen Stringer*1;2, Marius Pachitariu*1;3;4, Nicholas Steinmetz5, Charu Reddy5, Matteo Carandiniy5 and
-% Kenneth D. Harrisy3;4
-%
-%a session is split into multiple blocks and SVD are performed for each
-%block.
-%Concatenate all spatial factors U from each block
-%Apply SVD into concatenated U to obtain the estimate of U to original
-%frame
-%S*V' is given by the projection of frames into U
-%Input
-%frames:pixels x concatenated frames
-%(reshape to 2d if frames are 256x256xframes
-%Output
-%U:pixel x num_sval
-%V:temporal factors weighted by svals
-%frames x num_sval (S*V')' of svd)
+
+% parameter using the function ```splitSVD_2P.m```. 
+% | Parameter name | Description |
+% |----------------|-------------|
+% | ```frames``` | Nx $\times$ Ny $\times$ Nframes |
+% | ```num_block``` | number of block to divide Nframe into small set|
+% | ```num_sval```| number of singular top singular values kept |
+% 
+% Fsub : Nx $\times$ Ny $\times$ Nframe/num_block
+% 
+% For each block do following
+% ```
+% [Ub,Sb,~] = svd(subF,'econ');
+% G{i}=Ub(:,1:num_svals)*Sb(1:num_svals,1:num_svals);
+% ```
+% merge G and calculate SVD
+% ```
+% G_all=cell2mat(G);
+% [U,svals,~] = svd(G_all,'econ');
+% SV=single(frames)'*U;
+% ```
+% 
+% | Output parameter name   | Description |
+% |-------------------------|-------------|
+% | ```U``` | left singular vectors, Nx Ny $\times$ num_sval |
+% | ```SV``` | Projection of frame into left singular vectors U, Nframes $\times$ num_sval|
+% | ```sval```| top num_sval singular values |
+% 
+
 %2018 Hirofumi Nakayama
 
 %Need to change in case specifying ROI
