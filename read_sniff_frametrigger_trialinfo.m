@@ -1,4 +1,4 @@
-function [Sniff,frame_trigger,data,Sniff_time]=read_sniff_frametrigger_trialinfo(h5,path_used,pre,post,inh_detect)
+function [Sniff,frame_trigger,data,Sniff_time]=read_sniff_frametrigger_trialinfo(h5,path_used,pre,post,inh_detect,fps)
 %This function is to extract sniff trace of individual trials
 %Modified for use in 2p imaging
 %Sniff(trial x ms): sniff traces of each trial
@@ -23,6 +23,11 @@ end
 if ~exist('inh_detect','var')
     %Whether or not detect inhalation by threshold crossing
     inh_detect=true;
+end
+
+if ~exist('fps','var')
+    % Fps is given or notS
+    fps=30;
 end
 
 path_orig=pwd;
@@ -67,15 +72,15 @@ if length(frame_trigger)~=length(unique(frame_trigger))
 end
 frametrigger2 = sort(unique(frame_trigger));%If there is no duplicates, frametrigger2=frametrigger;
 
-% frame_tol = 34
-frame_tol = 40;  % what is 40 
+frame_tol = 1e3/fps*1.2;  
+delta_t = 1e3/fps;
 if nnz(diff(frametrigger2)>frame_tol)
     frameidx=find(diff(frametrigger2)>frame_tol,1);
     while ~isempty(frameidx)
-        fill=round((frametrigger2(frameidx+1)-frametrigger2(frameidx))/33.3);
+        fill=round((frametrigger2(frameidx+1)-frametrigger2(frameidx))/delta_t); %missing frames
         errorvals = frametrigger2(frameidx:frameidx+1);
         frametrigger2=[frametrigger2(1:frameidx);...
-            round(frametrigger2(frameidx)+33.3:33.3:frametrigger2(frameidx)+33.4*(fill-1))';...
+            round(frametrigger2(frameidx)+delta_t:delta_t:frametrigger2(frameidx)+delta_t*(fill-1))';...
             frametrigger2((frameidx+1):end)]; % make sure to add the right number of frames
         fprintf(['We replaced ',num2str(errorvals'),' with ',...
             num2str(frametrigger2(frameidx:frameidx+fill)'),'\n']);

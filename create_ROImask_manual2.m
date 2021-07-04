@@ -1,12 +1,18 @@
-function [roiMask_id,roiMask_stack]=create_ROImask_manual(cam_size)
+function [roiMask_id,roiMask_stack]=create_ROImask_manual2(cam_size, path)
 %Function to create binary roi mask from RoiSet.zip files created in FIJI
 %ImageJ
 
 
-supportedtypes={'*.zip','ZIPP Files'};
-[fname,pname,typeind]=uigetfile(supportedtypes,'Select ROI','V:\DMDPatterns');
+if ~exist('path','var')
+    supportedtypes={'*.zip','ZIPP Files'};
+    [fname,pname,typeind]=uigetfile(supportedtypes,'Select ROI');
 
-strROIArchiveFilename= fullfile(pname, fname);
+    strROIArchiveFilename= fullfile(pname, fname);
+    
+else
+    
+    strROIArchiveFilename = path;
+end
 [sROI] = ReadImageJROI(strROIArchiveFilename);
 
 Nx = cam_size(2);
