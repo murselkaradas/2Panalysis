@@ -160,10 +160,18 @@ inh_onset=data.inh_onset;
 fvOnTime=data.fvOnTime;
 
 %Check sniff alignment to fvOnTime or inh_onset
-inh_bin=findfirst(Sniff_time==double(inh_onset),2);
-fv_bin=findfirst(Sniff_time==double(fvOnTime),2);
+Sniff(Sniff_time==0)=NaN;
+Sniff_time(Sniff_time==0) = NaN; %% Sniff_time =0 is problematic acqusition and cause wrong estiamtion for inh and fv bin, MK 21/07/10
+row_NaN = isnan(mean(Sniff_time,2)); % We will add this to inh and fv bin;
+[~,inh_bin]=find(Sniff_time==double(inh_onset),length(inh_onset),'first');
+inh_bin(row_NaN) = 0;
+% inh_bin=findfirst(Sniff_time==double(inh_onset),2);
+[~,fv_bin]=find(Sniff_time==double(fvOnTime),length(fvOnTime),'first');
+% fv_bin=findfirst(Sniff_time==double(fvOnTime),2);
+fv_bin(row_NaN) = 0;
 
-offset=mean(Sniff(:));
+%% Need to change this it causes problem in inh detection
+offset=mean(Sniff(:),'omitnan');
 pn=Sniff>offset;
 Nfilt =30;
 filt=[ones(1,Nfilt),-1*ones(1,Nfilt)]; % why 30, small cause false detection,  hand tuned 30 ms
@@ -174,25 +182,26 @@ for t=1:size(Sniff,2)-2*Nfilt
         trig(tr,1:fv_bin(tr)+10)=0;
     end
 end
-inh_bin2=findfirst(trig==30,2);
+[~,inh_bin2,~]=find(trig ==(30*ones(num_trial,1)),num_trial ,'first');
+% inh_bin2=findfirst(trig==30,2);
 
 if inh_detect
     data.inh_onset_voyeur=data.inh_onset;
     inh_onset=data.inh_onset+int32(inh_bin2-inh_bin);
     data.inh_onset=inh_onset;
-    
-    inh_inSniff=inh_onset-record_onset(1);
-    Sniff2=zeros(size(Sniff));
-    for i=2:num_trial
-        if nnz(ismember(sniffall_time,inh_inSniff(i)-pre:inh_inSniff(i)+post-1))>0
-            Sniff2(i,:)=sniff_all(ismember(sniffall_time,inh_inSniff(i)-pre:inh_inSniff(i)+post-1));
-            Sniff_time(i,:)=inh_onset(i)-pre:inh_onset(i)+post-1;
-            
-        end
-    end
-    Sniff=single(Sniff2);
+else
+    data.inh_onset_voyeur=data.inh_onset;
 end
+inh_inSniff=inh_onset-record_onset(1);
+Sniff2=zeros(size(Sniff));
+for i=2:num_trial
+    if nnz(ismember(sniffall_time,inh_inSniff(i)-pre:inh_inSniff(i)+post-1))>0
+        Sniff2(i,:)=sniff_all(ismember(sniffall_time,inh_inSniff(i)-pre:inh_inSniff(i)+post-1));
+        Sniff_time(i,:)=inh_onset(i)-pre:inh_onset(i)+post-1;
 
+    end
+end
+Sniff=single(Sniff2);
 
 data.frametrigger = frame_trigger;
 cd(path_orig);
