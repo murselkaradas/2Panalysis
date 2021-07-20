@@ -28,11 +28,10 @@ function [U,SV,svals]=splitSVD_2p(frames,varargin)
 % | ```sval```| top num_sval singular values |
 % 
 
-%2018 Hirofumi Nakayama
+%2018 Hirofumi Nakayama and Mursel Karadas
 
 %Need to change in case specifying ROI
-mask=true(512);
-fps=30;
+mask=true(size(frames,1:2));
 % fps=trial_info.fps;
 
 

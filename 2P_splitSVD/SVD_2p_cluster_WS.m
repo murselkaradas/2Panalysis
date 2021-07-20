@@ -39,12 +39,12 @@ tmp = strsplit(name2, '_');
 name3 = strjoin(tmp(1:end-2),'_'); %remove _0000x_00001
 name3 =strcat(name3,'_');
 cd(filepath)
-Names = dir([strcat(name3,'*')]);
+Names = dir([strcat(name3,'*','.tif')]);
 Names={Names.name}';
 
 %----------------------------------------------
 for s=1:numel(Names)
-    Ytiff = tiff_reader(Names{s});
+    Ytiff = loadtiff(Names{s});
     Y = Ytiff(:,:,1:Ncolor:end);
     [Usub,~,Ssub]=splitSVD_2p(Y,num_svals_1st);
     G{s,1}=Usub*Ssub;
@@ -59,7 +59,7 @@ G_all=cell2mat(G_all(:)');
 
 sv = [];
 for s=1:numel(Names)
-    Ytiff = tiff_reader(Names{s});
+    Ytiff = loadtiff(Names{s});
     Y = Ytiff(:,:,1:Ncolor:end);
     num_frames(s) = size(Y,3);
     sv=[sv;single(reshape(Y,[],size(Y,3)))'*U];
