@@ -1,5 +1,8 @@
-function [odorInfo] = HDF5_getOdors(fpathH5,fnameH5,trials_read)
+function [odorInfo] = HDF5_getOdors(fpathH5,fnameH5,trials_read, latfactor)
 
+if ~exist('latfactor','var')
+    latfactor= 10;
+end
 H5=h5read(fullfile(fpathH5,fnameH5),'/Trials');
 
 Ntrial = length(H5.trialNumber);
@@ -11,7 +14,8 @@ end
 if any(ismember(fields(H5), 'amplitude_1'))
     StimID = strings([Ntrial,1]);
     stimon = find(H5.amplitude_1 >0);
-    StimID(stimon) = '-S';
+    lat = round((H5.laserontime(stimon) - H5.inh_onset(stimon))/latfactor)*latfactor;
+    StimID(stimon) = strcat('-SL', num2str(lat, '%d'));
     
 end    
     
