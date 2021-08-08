@@ -171,21 +171,21 @@ inh_bin(row_NaN) = 0;
 fv_bin(row_NaN) = 0;
 
 %% Need to change this it causes problem in inh detection
-offset=mean(Sniff(:),'omitnan');
-pn=Sniff>offset;
-Nfilt =30;
-filt=[ones(1,Nfilt),-1*ones(1,Nfilt)]; % why 30, small cause false detection,  hand tuned 30 ms
-trig=zeros(size(Sniff));
-for t=1:size(Sniff,2)-2*Nfilt
-    for tr=1:size(Sniff,1)
-        trig(tr,t+Nfilt)=pn(tr,t:t+2*Nfilt-1)*filt';
-        trig(tr,1:fv_bin(tr)+10)=0;
-    end
-end
-[~,inh_bin2,~]=find(trig ==(30*ones(num_trial,1)),num_trial ,'first');
 % inh_bin2=findfirst(trig==30,2);
 
 if inh_detect
+    offset=mean(Sniff(:),'omitnan');
+    pn=Sniff>offset;
+    Nfilt =30;
+    filt=[ones(1,Nfilt),-1*ones(1,Nfilt)]; % why 30, small cause false detection,  hand tuned 30 ms
+    trig=zeros(size(Sniff));
+    for t=1:size(Sniff,2)-2*Nfilt
+        for tr=1:size(Sniff,1)
+            trig(tr,t+Nfilt)=pn(tr,t:t+2*Nfilt-1)*filt';
+            trig(tr,1:fv_bin(tr)+10)=0;
+        end
+    end
+    [~,inh_bin2,~]=find(trig ==(30*ones(num_trial,1)),num_trial ,'first');
     data.inh_onset_voyeur=data.inh_onset;
     inh_onset=data.inh_onset+int32(inh_bin2-inh_bin);
     data.inh_onset=inh_onset;

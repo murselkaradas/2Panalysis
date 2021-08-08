@@ -14,7 +14,8 @@ end
 if any(ismember(fields(H5), 'amplitude_1'))
     StimID = strings([Ntrial,1]);
     stimon = find(H5.amplitude_1 >0);
-    lat = round((H5.laserontime(stimon) - H5.inh_onset(stimon))/latfactor)*latfactor;
+%     lat = round((H5.laserontime(stimon) - H5.inh_onset(stimon))/latfactor)*latfactor;
+    lat = round(H5.pulseOnsetDelay_1(stimon)/latfactor)*latfactor;
     StimID(stimon) = strcat('-SL', num2str(lat, '%d'));
     
 end    
@@ -22,7 +23,7 @@ end
 if ~any(ismember(fields(H5),'dilutors0x3Adilutor_00x3Aair_flow'))
     dilution_factor = ones(Ntrial,1);
 else 
-    dilution_factor = (1-H5.dilutors0x3Adilutor_00x3Aair_flow./10000);
+    dilution_factor = 1-round(H5.dilutors0x3Adilutor_00x3Aair_flow./10)./100;
 end
 rackOdors0 = deblank(string((H5.olfas0x3Aolfa_00x3Aodor)'));
 olfa0_flow = H5.olfas0x3Aolfa_00x3Amfc_1_flow.*dilution_factor.*H5.olfas0x3Aolfa_00x3Avialconc;

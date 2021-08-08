@@ -4,8 +4,8 @@ function fig=figure2(varargin);
 % varargin=[name]
 % varargin=[scaling, name]
 
-pos = get(0,'ScreenSize')*0.95;
-%pos = [1 1 1920 1080]*0.95;
+% pos = get(0,'ScreenSize')*0.95;
+pos = [1 1 1920 1080]*0.95;
 pos(2)=pos(2)-30;
 if nargin==0
     fig=figure('Position',pos);
