@@ -19,8 +19,8 @@ addpath '/gpfs/scratch/karadm01/WaveSurfer-1.0.2'
 % SVD_2p_cluster_WS('/gpfs/scratch/karadm01/2Pdata/MK18881/210710/odorstim/aligned/MK18881_210710_11odorsstim_00001_00001.tif', 1, 40,200,100);
 %%  FIELD 1
 % Read H5 and roi file
-path = '/gpfs/scratch/karadm01/2Pdata/M72/SC12/210802/MENstim';
-fieldname = 'SC12_210802_MENstim';
+path = '//gpfs/scratch/karadm01/2Pdata/M72/MK19224/210910/2HAstim';
+fieldname = 'MK19224_210910_2HAstim';
 img_format = [512, 512];
 fps =29.99;
 OdorDuration = 1;
@@ -68,8 +68,6 @@ filenum = size(Names,1);
 datamean = zeros(img_format);
 Fluo_cell = [];
 Nframestart= 0 ;
-corrected_stimframe = [];
-
 for i = 1: filenum
     data= double(loadtiff(fullfile(foldername{i},filenames{i})));
     Nframe = size(data,3);
@@ -98,7 +96,7 @@ for j =1:num_cell
 end
 clear data1 data  Fluo_substracted Fluo_raw fluotemp
 
-%%
+%
 img = repmat(imadjust(mat2gray(datamean)),1,1,3)*0.8;
 opt = 1;
 img(:,:,2) = img(:,:,2)+double(logical(cellMask1))*0.1;
@@ -125,7 +123,7 @@ for tr=1:length(inh_onset)
     if ~isempty(inh_frame)
         sv_frame_range=inh_frame-pre_inh:inh_frame+post_inh-1;
         if max(sv_frame_range) < size(Fluo_cell,2) && (inh_frame>pre_inh)
-            fcell=Fluo_cell_stimcorrected(:,sv_frame_range);
+            fcell=Fluo_cell(:,sv_frame_range);
             baseline_frame=pre_inh-32:pre_inh-2; %
             dff(:,:,ind)=(fcell-mean(fcell(:,baseline_frame),2))./mean(fcell(:,baseline_frame),2);
             F(:,:,ind) = fcell;
@@ -162,7 +160,7 @@ stimcell = [12,29,40,48,54,57,58,66,72];
 %stimcell = [11,14]
 %stimcell = [16,42,47]; %SC23
 stimcell = [5,10,25,31,39];%SC24
-stimcell=[6,8,12,14,20];
+stimcell=[5];
 p=numSubplots(size(OdorInfo.odors,1));
 p = [5,3];
 index = (reshape(1:p(2)*p(1),p(2),p(1)).');

@@ -1,4 +1,4 @@
-function [Sniff,frame_trigger,data,Sniff_time]=read_sniff_frametrigger_trialinfo(h5,path_used,pre,post,inh_detect,fps)
+function [Sniff,frame_trigger,data,Sniff_time]=read_sniff_frametrigger_trialinfo(h5,path_used,pre,post,inh_detect,fps,wsFrameNumbers, pmtblank_dur)
 %This function is to extract sniff trace of individual trials
 %Modified for use in 2p imaging
 %Sniff(trial x ms): sniff traces of each trial
@@ -29,7 +29,15 @@ if ~exist('fps','var')
     % Fps is given or notS
     fps=30;
 end
+if ~exist('pmtblank','var')
+    pmtblank_dur = 16; 
+end
+if ~exist('wsFrameNumbers','var')
+    Blanked_recording = false;
+else
+    Blanked_recording = true;
 
+end
 path_orig=pwd;
 cd(path_used)
 
@@ -46,18 +54,26 @@ h_info=h5info(h5);
 h_info=h_info.Groups;
 % Keys is Number_of_trials x 1 
 Keys={h_info.Name};%h5 file from 2p rig doesn't record trial0 analog signal
+fvOnTime=data.fvOnTime;
 %%
 %obtain frametrigger
 record_onset=zeros(size(inh_onset));
 frame_trigger= [];
+frame_tol = 1e3/fps*1.2;  
+delta_t = 1e3/fps;
+frame_fv = zeros(num_trial,1);
 for i=1:num_trial
     %i
     data_Events=h5read(h5,strcat(Keys{i},'/Events'));
-    
+
     packet_sent_time=data_Events.packet_sent_time;
     sniff_samples=data_Events.sniff_samples;    %array for the duration of each packet
     record_onset(i)=packet_sent_time(1)-sniff_samples(1); %onset time for Sniff{trial(i)}
-    frame_trigger = [frame_trigger; cell2mat(h5read(h5,strcat(Keys{i},'/frame_triggers')))];
+    trialframes = cell2mat(h5read(h5,strcat(Keys{i},'/frame_triggers')));
+    if ~isempty(trialframes)
+        frame_trigger = [frame_trigger; trialframes];
+        [~,frame_fv(i)] = min(abs( frame_trigger -double(fvOnTime(i))));
+    end
 end
 
 %% Detecting missing frametrigger and fill the missing frametrigger using
@@ -65,32 +81,43 @@ end
 %some frametriggers are missed
 %some other frametriggers are replaced by later time (usually 300 - 400ms
 %later). This make the same frametrigger happing twice.
-
 %Remove duplicate
 if length(frame_trigger)~=length(unique(frame_trigger))
     fprintf('duplicated frametrigger')
 end
 frametrigger2 = sort(unique(frame_trigger));%If there is no duplicates, frametrigger2=frametrigger;
-
-frame_tol = 1e3/fps*1.2;  
-delta_t = 1e3/fps;
-if nnz(diff(frametrigger2)>frame_tol)
-    frameidx=find(diff(frametrigger2)>frame_tol,1);
-    while ~isempty(frameidx)
-        fill=round((frametrigger2(frameidx+1)-frametrigger2(frameidx))/delta_t); %missing frames
-        errorvals = frametrigger2(frameidx:frameidx+1);
-        frametrigger2=[frametrigger2(1:frameidx);...
-            round(frametrigger2(frameidx)+delta_t:delta_t:frametrigger2(frameidx)+delta_t*(fill-1))';...
-            frametrigger2((frameidx+1):end)]; % make sure to add the right number of frames
-        fprintf(['We replaced ',num2str(errorvals'),' with ',...
-            num2str(frametrigger2(frameidx:frameidx+fill)'),'\n']);
-        %         frameidx=find(diff(frametrigger2)>35,1); Caused infinite loop in
-        %         14393_190914_field4
+if Blanked_recording
+    Frame_endindices = [find(diff(frametrigger2)>1e3); length(frametrigger2)];
+    VoyeurFrameNumbers = [Frame_endindices(1); diff(Frame_endindices)];
+    [ProblematicTrials ,~,~]= find((VoyeurFrameNumbers-wsFrameNumbers) ~=0);
+    if isempty(ProblematicTrials(:))
+        fprintf('No frame loss in Voyeur \n');
+    else
+        fprintf(['Trials numbers :  ',num2str(ProblematicTrials'), '   have missing frames.','\n']);
+        for i = 1:length(ProblematicTrials)
+            frame_corrected = frametrigger2(ProblematicTrials);
+        end
+    end
+else
+    if nnz(diff(frametrigger2)>frame_tol)
         frameidx=find(diff(frametrigger2)>frame_tol,1);
+        while ~isempty(frameidx)
+            fill=round((frametrigger2(frameidx+1)-frametrigger2(frameidx))/delta_t); %missing frames
+            errorvals = frametrigger2(frameidx:frameidx+1);
+            frametrigger2=[frametrigger2(1:frameidx);...
+                round(frametrigger2(frameidx)+delta_t:delta_t:frametrigger2(frameidx)+delta_t*(fill-1))';...
+                frametrigger2((frameidx+1):end)]; % make sure to add the right number of frames
+            fprintf(['We replaced ',num2str(errorvals'),' with ',...
+                num2str(frametrigger2(frameidx:frameidx+fill)'),'\n']);
+            %         frameidx=find(diff(frametrigger2)>35,1); Caused infinite loop in
+            %         14393_190914_field4
+            frameidx=find(diff(frametrigger2)>frame_tol,1);
+        end
     end
 end
 
 frame_trigger = frametrigger2;
+
 %%
 %Inhalation timing within sniff traces of each trial
 tot_pre_post = pre + post;
@@ -170,6 +197,16 @@ inh_bin(row_NaN) = 0;
 % fv_bin=findfirst(Sniff_time==double(fvOnTime),2);
 fv_bin(row_NaN) = 0;
 
+
+%% Find Stim trigger
+stim_time = inh_onset + data.pulseOnsetDelay_1;
+for i = 1:num_trial-1
+    %stim_frame(i)=find(frame_trigger<stim_time(i+1), 1, 'last');%frame in which inh_onset is included
+    %if data.amplitude_1(i) >0
+        [data.stim_diff(i), ind] = min(abs(double(frame_trigger)+fps/2.0 -double(stim_time(i+1)- pmtblank_dur/2.0)));
+        data.stim_frame(i) = ind;
+    %end
+end
 %% Need to change this it causes problem in inh detection
 % inh_bin2=findfirst(trig==30,2);
 

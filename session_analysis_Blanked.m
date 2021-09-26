@@ -19,8 +19,8 @@ addpath '/gpfs/scratch/karadm01/WaveSurfer-1.0.2'
 % SVD_2p_cluster_WS('/gpfs/scratch/karadm01/2Pdata/MK18881/210710/odorstim/aligned/MK18881_210710_11odorsstim_00001_00001.tif', 1, 40,200,100);
 %%  FIELD 1
 % Read H5 and roi file
-path = '/gpfs/scratch/karadm01/2Pdata/M72/SC12/210802/MENstim';
-fieldname = 'SC12_210802_MENstim';
+path = '/gpfs/scratch/karadm01/2Pdata/M72/19443/210917/LeftBulb/2HAstim';
+fieldname = '19443_210917_2HAstim';
 img_format = [512, 512];
 fps =29.99;
 OdorDuration = 1;
@@ -45,18 +45,25 @@ wsdata = loadDataFile(wsh5_name);
 wsNtrials = size(fieldnames(wsdata),1)- 1; % First field is header
 AIchannelnames = deblank(string(cell2mat(wsdata.header.AIChannelNames)));
 FrameTriggerChannel = find(strcmp(AIchannelnames, 'FrameTrigger'));
+PMTgateChannel = find(strcmp(AIchannelnames, 'FrameSync_DMD'));
+
 wsFrameNumbers = zeros(wsNtrials,1);
+ws_stimframe = zeros(wsNtrials,1);
 n=20;
 for i = 1:wsNtrials
     an = eval(sprintf('wsdata.sweep_%04d.analogScans',i));
     framediff= find(diff(an(:,FrameTriggerChannel))>2.5);  %% Frame trigger is channel 1
+    framepmt = find(diff(an(:,PMTgateChannel))>2.5);  %% Frame trigger is channel 1
     wsFrameNumbers(i) = length(framediff);
+    if ~isempty(framepmt)
+        [minDistance, StimIndex] = min(abs(framediff - framepmt));
+        ws_stimframe(i) = StimIndex;
+    end
 end
 %
 pre = 2000;
 post = 4000;
-%[sniff,frametrigger,Data,~]=read_sniff_frametrigger_trialinfo(h5_name,path_h5,pre,post,false,fps,wsFrameNumbers);
-[sniff,frametrigger,Data,~]=read_sniff_frametrigger_trialinfo(h5_name,path_h5,pre,post,false,fps);
+[sniff,frametrigger,Data,~]=read_sniff_frametrigger_trialinfo(h5_name,path_h5,pre,post,false,fps,wsFrameNumbers);
 
 
 %% In Case ScanImageTiffReader does not work use following 
@@ -67,46 +74,63 @@ foldername = {Names.folder};
 filenum = size(Names,1);
 datamean = zeros(img_format);
 Fluo_cell = [];
+Fluo_cell_Kalman = [];
+Fluo_cell_stimcorrected= [];
+stimframe = zeros(filenum,num_cell);
+stimframes = zeros(filenum,num_cell);
 Nframestart= 0 ;
 corrected_stimframe = [];
-
-for i = 1: filenum
+for i = 1:filenum
     data= double(loadtiff(fullfile(foldername{i},filenames{i})));
     Nframe = size(data,3);
     datamean = datamean + mean(data,3);
-    Fluo_cell =[Fluo_cell, double(cellMask_vec')*double(reshape(data,[img_format(1)*img_format(2),Nframe]))];
-end
-%%
-stimframe_= [];
-Voyeur_stim_frame = Data.stim_frame;
-Voyeur_stim_frame(Voyeur_stim_frame ==0) = [];
-for k = 1:num_cell
-    stimframe_(k,:) = findstimframe(squeeze(Fluo_cell(k,:,:)),Voyeur_stim_frame,3);
-    Fluo_substracted{k} = Fluo_cell(k,:);
-end
-stimframes = findmostrepeatedstims(stimframe_);
-Fluo_cell_Kalman = Fluo_cell;
-Fluo_cell_stimcorrected = Fluo_cell;
-for j =1:num_cell
-    Fluo_substracted{j}(stimframes(j,:)) = [];
-    Fluo_raw = reshape(Fluo_substracted{j},1,1,[]);
-    fluotemp = reshape(Kalman_Stack_Filter(Fluo_raw , 0.5, 0.5),1,[]);
-    option = 'meanofprepost';
-    fluotemp = insertstimframeback(fluotemp,Fluo_cell(j,:), stimframes(j,:),option);
-    Fluo_cell_Kalman(j,:)  = fluotemp;
-    Fluo_cell_stimcorrected(j,:) = insertstimframeback(squeeze(Fluo_raw)', Fluo_cell(j,:), stimframes(j,:),option);
-end
-clear data1 data  Fluo_substracted Fluo_raw fluotemp
+    Fluo_trial = double(cellMask_vec')*double(reshape(data,[img_format(1)*img_format(2),Nframe]));
+    if (ws_stimframe(i) ~=0)
+        option = 'meanofprepost';
+        stimframe_meandata(i) = findstimframe(squeeze(mean(mean(data,1),2)),ws_stimframe(i));
+        for k = 1:num_cell
+            stimframes(i,k) = findstimframe(squeeze(Fluo_trial(k,:,:)),ws_stimframe(i));
+            Fluo_substracted{k} = Fluo_trial(k,:);
+        end
+        %stimframes(i,:) = findmostrepeatedstims(stimframe(i,:)');
+        Fluo_raw = zeros(1,1,size(Fluo_trial,2)-1);
+        Fluo_filtered_trial = Fluo_trial;
+        Fluo_nonfiltered_trial = Fluo_trial;
 
+        for j = 1: num_cell
+            Fluo_substracted{j}(stimframes(i,j)) = [];
+            Fluo_raw(1,1,:) = Fluo_substracted{j};
+            fluotemp = reshape(Kalman_Stack_Filter(Fluo_raw , 0.5, 0.5),1,[]);
+            fluotemp = insertstimframeback(fluotemp,Fluo_trial(j,:), stimframes(i,j),option);
+            Fluo_filtered_trial(j,:)  =fluotemp;
+            Fluo_nonfiltered_trial(j,:) = insertstimframeback(reshape(Fluo_raw,1,[]), Fluo_trial(j,:), stimframes(i,j),option);
+            
+        end
+        Fluo_cell_Kalman =[Fluo_cell_Kalman, Fluo_filtered_trial];
+        Fluo_cell_stimcorrected = [Fluo_cell_stimcorrected, Fluo_nonfiltered_trial];
+    else
+        Fluo_raw = zeros(1,num_cell,size(Fluo_trial,2));
+        Fluo_raw(1,:,:) = Fluo_trial;
+        Fluo_cell_Kalman = [Fluo_cell_Kalman,squeeze(Kalman_Stack_Filter(double(Fluo_raw),0.5,0.5))];
+        Fluo_cell_stimcorrected = [Fluo_cell_stimcorrected, Fluo_trial];
+
+    end
+    Fluo_cell =[Fluo_cell, Fluo_trial];
+    disp(i);
+end
 %%
+clear data
 img = repmat(imadjust(mat2gray(datamean)),1,1,3)*0.8;
 opt = 1;
 img(:,:,2) = img(:,:,2)+double(logical(cellMask1))*0.1;
 figure(22);imagesc(img);CenterFromRoiMasks(cellMask1,1:num_cell,opt);axis square
 savefig(strcat(fieldname, 'ROI', '.fig'))
 saveas(figure(22),strcat(fieldname, 'ROI', '.png'))
+
 options.overwrite = true;
 saveastiff(int16(datamean),strcat(fieldname,'_AVG.tif'), options)
+
+%%
 %% Find Included Trials
 Nframe = size(frametrigger,1);
 pre_inh=floor(2*fps);
@@ -162,7 +186,7 @@ stimcell = [12,29,40,48,54,57,58,66,72];
 %stimcell = [11,14]
 %stimcell = [16,42,47]; %SC23
 stimcell = [5,10,25,31,39];%SC24
-stimcell=[6,8,12,14,20];
+stimcell=[1]
 p=numSubplots(size(OdorInfo.odors,1));
 p = [5,3];
 index = (reshape(1:p(2)*p(1),p(2),p(1)).');
@@ -305,11 +329,10 @@ for i = 1: size(OdorInfo.odors,1)
 
 end
 savefig(fig6, strcat(fieldname, '_DFFTrace_StimCellKalman', '.fig'))
-saveas(fig6, strcat(fieldname, '_DFFTrace_StimCellKalman', '.png'))
 savefig(fig5,strcat(fieldname, '_DFFTrace_StimKalman', '.fig'))
-saveas(fig5,strcat(fieldname, '_DFFTrace_StimKalman', '.png'))
 savefig(fig4,strcat(fieldname, '_DFFMAPKalman', '.fig'))
-saveas(fig4,strcat(fieldname, '_DFFMAPKalman', '.png'))
+
+
 %  SAVE all workspace
 save(strcat(fieldname, '.mat'));
 close all
@@ -349,4 +372,3 @@ for i = 1:length(stimcell)
     saveas(fig7, strcat(fieldname, '_DFFTrace_StimCellIDsem_',num2str(cellid),'.png'))
 
 end
-close all
