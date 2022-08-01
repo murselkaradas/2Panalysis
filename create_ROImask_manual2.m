@@ -64,7 +64,28 @@ for i=1:numel(sROI)
         bw(miny:maxy, minx:maxx) = 1;
         roiMasks(:,:,i) = bw;
         centOfMass(i,:) = [mean(rectbounds(1:2:end)), mean(rectbounds(2:2:end))];
-    end    
+    
+    elseif  isequal(sROI{i}.strType, 'Polygon')
+         ind=sROI{i}.mnCoordinates;
+        
+        %For whatever reasons, ind take values of 0-img_size not 1-img_size.    
+       %replace 0 in index to 1 to avoid errors
+        ind(ind==0)=1;
+        
+        if norm(ind(1,:) - ind(end,:)) > 0
+            ind = [ind; ind(1,:)];
+        end
+        centOfMass(i,:) = [mean(ind(:,2)), mean(ind(:,1))];
+        tmp = poly2mask(ind(:,1),ind(:,2),Ny,Nx);
+        dd= bwconncomp(tmp);
+        if dd.NumObjects==1
+            %tmp=closeOpenROI(tmp);
+        elseif dd.NumObjects>=2
+            tmp=(poly2mask(ind(:,1),ind(:,2),Ny,Nx));
+        end
+        roiMasks(:,:,i)=tmp;
+        % close open loop
+    end
 end
 
 %Detect duplicates in roiMasks and delete that
@@ -86,7 +107,7 @@ roiMask_id=zeros(size(roiMasks(:,:,1)));
 %rank order center of mass in ascending order
 [Data,p] = sort(centOfMass(:,1),'ascend');
 posRank = 1:length(Data);
-posRank(p) = posRank;
+%posRank(p) = posRank;
 %Create single images containing id of roiMasks
 for i=1:length(posRank)
     roiMask_id(logical(roiMasks(:,:,posRank==i)))=i;

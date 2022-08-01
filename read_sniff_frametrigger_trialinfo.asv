@@ -96,10 +96,7 @@ if Blanked_recording
         else
             fprintf(['Trials numbers :  ',num2str(ProblematicTrials'), '   have missing frames.','\n']);
             Frametrigger_temp = frametrigger2;
-            for i = 1:length(ProblematicTrials)
-	      if ProblematicTrials(i)==1
-                	ProblematicFrameBounds = [1 Frame_endindices(ProblematicTrials(i))];
-	      else
+            for i = 1:length(ProblematicTrials)             
                 ProblematicFrameBounds = [Frame_endindices(ProblematicTrials(i)-1)+1 Frame_endindices(ProblematicTrials(i))];
                 frameidx=find(diff(Frametrigger_temp(ProblematicFrameBounds(1): ProblematicFrameBounds(2)))>frame_tol,1);
                  if ~isempty(frameidx)
@@ -131,7 +128,6 @@ if Blanked_recording
                 end
             end
             frametrigger2 = Frametrigger_temp;
-	end
         end
     
     else
@@ -232,13 +228,11 @@ Sniff(Sniff_time==0)=NaN;
 Sniff_time(Sniff_time==0) = NaN; %% Sniff_time =0 is problematic acqusition and cause wrong estiamtion for inh and fv bin, MK 21/07/10
 row_NaN = isnan(mean(Sniff_time,2)); % We will add this to inh and fv bin;
 locs_NaN = find(row_NaN ==1);
-[inh_bin,~]=find(Sniff_time'==double(inh_onset)',length(inh_onset),'first');
+[x,inh_bin]=find(Sniff_time==double(inh_onset),length(inh_onset),'first');
 inh_bin = insert_element(inh_bin,locs_NaN, zeros(length(locs_NaN),1));
 % inh_bin=findfirst(Sniff_time==double(inh_onset),2);
-[bin_fv,trial_id]=find(Sniff_time'==double(fvOnTime)',length(fvOnTime),'first');
+[fv_bin,fv_bin]=find(Sniff_time'==double(fvOnTime)',length(fvOnTime),'first');
 % fv_bin=findfirst(Sniff_time==double(fvOnTime),2);
-fv_bin = 1950*ones(length(fvOnTime),1);
-fv_bin(trial_id) = bin_fv;
 fv_bin = insert_element(fv_bin,locs_NaN, zeros(length(locs_NaN),1));
 
 %% Find Stim trigger
