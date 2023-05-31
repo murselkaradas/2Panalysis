@@ -1,14 +1,16 @@
-function [Sniff,frame_trigger,data,Sniff_time]=read_sniff_frametrigger_trialinfo(h5,path_used,pre,post,inh_detect,fps,wsFrameNumbers, pmtblank_dur)
+function [Sniff,Sniff_smooth,frame_trigger_trial,frame_trigger,data,Sniff_time]=Read_Trial_Info(h5,path_used,pre,post,inh_detect,fps,wsFrameNumbers, pmtblank_dur)
 %This function is to extract sniff trace of individual trials
 %Modified for use in 2p imaging
 %Sniff(trial x ms): sniff traces of each trial
+% Sniff_smooth: smoothed version of sniff
+% frame_trigger_trial : Frame trigger times for each trial
 %frametrigger: frame triggers for tif stack (half the number of total
 %frames in tiff stack because both green and red channel is recorded at
 %each triggering)
 %Sniff_time(trial x ms): time in data file for corresponding time bins in
 %Sniff
 %
-%Hirofumi Nakayama and Mursel Karadas 2020
+% Mursel Karadas 2022
 
 %Duration before inahlation to be analyzed
 if ~exist('pre','var')
@@ -75,7 +77,7 @@ for i=1:num_trial
         [~,frame_fv(i)] = min(abs( frame_trigger -double(fvOnTime(i))));
     end
 end
-
+Blanked_Duration = 1e3;  % To identify each trial since voyeur start trial by FV opening.
 %% Detecting missing frametrigger and fill the missing frametrigger using
 %linear interploation
 %some frametriggers are missed
@@ -87,10 +89,12 @@ if length(frame_trigger)~=length(unique(frame_trigger))
 end
 frametrigger2 = sort(unique(frame_trigger));%If there is no duplicates, frametrigger2=frametrigger;
 if Blanked_recording
-    Frame_endindices = [find(diff(frametrigger2)>1e3); length(frametrigger2)];
+    Frame_endindices = [find(diff(frametrigger2)>Blanked_Duration); length(frametrigger2)];
     if length(wsFrameNumbers) >1
         VoyeurFrameNumbers = [Frame_endindices(1); diff(Frame_endindices)];
-        [ProblematicTrials ,~,~]= find((VoyeurFrameNumbers-wsFrameNumbers) ~=0);
+        fprintf(['VoyeurFrameTotal: ',num2str(sum(VoyeurFrameNumbers))]);
+        fprintf(['WSFrameTotal: ',num2str(sum(wsFrameNumbers))]);
+        [ProblematicTrials ,~,~]= find((VoyeurFrameNumbers(:)-wsFrameNumbers(:)) ~=0);
         if isempty(ProblematicTrials(:))
             fprintf('No frame loss in Voyeur \n');
         else
@@ -127,16 +131,19 @@ if Blanked_recording
                 Frame_endindices = [find(diff(Frametrigger_temp)>1e3); length(Frametrigger_temp)];
                 VoyeurFrameNumbers = [Frame_endindices(1); diff(Frame_endindices)];
                 if VoyeurFrameNumbers(ProblematicTrials(i)) == wsFrameNumbers(ProblematicTrials(i))
-                   fprintf(['Trials numbers :  ',num2str(ProblematicTrials(i)'), '  matches to wavesurfer.','\n']);
+                   fprintf(['Trials numbers :  ',num2str(ProblematicTrials(i)'), '  matched to wavesurfer.','\n']);
                 end
             end
             frametrigger2 = Frametrigger_temp;
     end
         end
-        %% check again especially for first trial
+        %% check again especially for first trial since Voyeur can drop many frames at the beginning
         if(VoyeurFrameNumbers(1)-wsFrameNumbers(1)) ~=0
             Nmiss = wsFrameNumbers(1) -VoyeurFrameNumbers(1);
-            frametrigger2 = vertcat(linspace(frametrigger2(1)-fps-Nmiss*fps, frametrigger2(1)-fps, Nmiss)', frametrigger2);
+            frametrigger2 = vertcat(linspace(frametrigger2(1)-delta_t-Nmiss*delta_t, frametrigger2(1)-delta_t, Nmiss)', frametrigger2);
+            Frame_endindices = [find(diff(frametrigger2)>Blanked_Duration); length(frametrigger2)];
+            VoyeurFrameNumbers = [Frame_endindices(1); diff(Frame_endindices)];
+
         end
 
     else
@@ -144,7 +151,26 @@ if Blanked_recording
             fprintf('No problem in frames \n');
         end
     end
+    
+    %% Assign frame times to each trials by checking starttrial infos
+    frame_trigger_trial = {};
+    frames = frametrigger2;
+    N_tiff = length(VoyeurFrameNumbers);
+    data.Voyeur_frame_numbers = [];
+    for i = 1: N_tiff
+        Nf = VoyeurFrameNumbers(end-i+1);
+        frames_i = frames(end-Nf+1:end);
+        for j = 1:num_trial
+            [val(j),frame_diff(j)] = min(abs(frames_i -double(data.starttrial(j))));
+        end
+        [~,trial_id] = min(val); 
+        frame_trigger_trial{trial_id} = frames_i;
+        frames(end-Nf+1:end) = [];
+        data.Voyeur_frame_numbers(trial_id) = size(frames_i,1);
+    end
+
 else
+    frame_trigger_trial = {};
     if nnz(diff(frametrigger2)>frame_tol)
         frameidx=find(diff(frametrigger2)>frame_tol,1);
         while ~isempty(frameidx)
@@ -185,7 +211,7 @@ for i=1:num_trial
     trial_subind = [trial_subind;[1:length(events.sniff_samples)]'];
 end
 
-lost_packet = find(diff(packet_sent_time)~=sniff_samples(2:end))+1; %why  +1 
+lost_packet = find(diff(packet_sent_time)~=sniff_samples(2:end))+1;
 sniff_all=[];
 for i=1:num_trial
     st=zeros(1,pre+post);
@@ -256,9 +282,10 @@ for i = 1:num_trial-1
         data.stim_frame(i) = ind;
     %end
 end
+%% Need to change this it causes problem in inh detection
 inh_inSniff=inh_onset-record_onset(1);
 Snifftemp=zeros(size(Sniff));
-for i=2:num_trial
+for i=1:num_trial
     if nnz(ismember(sniffall_time,inh_inSniff(i)-pre:inh_inSniff(i)+post-1))>0
         
         Snifftemp(i,:)=sniff_all(ismember(sniffall_time,inh_inSniff(i)-pre:inh_inSniff(i)+post-1));
@@ -269,6 +296,7 @@ inh_bin2= inh_bin;
 %%
 if inh_detect
     for kk = 2:num_trial
+        kk
         respiratoryTrace = Snifftemp(kk,:);
         bmObj = breathmetrics(-1*respiratoryTrace', 1e3, 'rodentAirflow');
         bmObj.estimateAllFeatures(1,'simple', 0, 1);
@@ -284,6 +312,7 @@ if inh_detect
 else
     data.inh_onset_voyeur=data.inh_onset;
 end
+%%
 inh_inSniff=inh_onset-record_onset(1);
 Sniff2=zeros(size(Sniff));
 for i=2:num_trial
@@ -291,13 +320,22 @@ for i=2:num_trial
         
         Sniff2(i,:)=sniff_all(ismember(sniffall_time,inh_inSniff(i)-pre:inh_inSniff(i)+post-1));
         Sniff_time(i,:)=inh_onset(i)-pre:inh_onset(i)+post-1;
-
     end
 end
 Sniff=single(Sniff2);
 data.frametrigger = frame_trigger;
 data.fv_bin = fv_bin;
+Sniff_smooth = Sniff;
+for i=2:num_trial
+    bmObj = breathmetrics(-1*Sniff(i,:)', 1e3, 'rodentAirflow');
+    bmObj.estimateAllFeatures(1,'simple', 0, 1);
+    Sniff_smooth(i,:) = -1*bmObj.baselineCorrectedRespiration;
+    [~, index] = min(abs(bmObj.inhaleOnsets-2001));
+    data.pre_inhs{i} = bmObj.inhaleOnsets(1:index-1);
+    data.post_inhs{i} = bmObj.inhaleOnsets(index:end);
+end
 cd(path_orig);
+
 
 function [v] = insert_element(vin,locs, locsval)
    v = vin;

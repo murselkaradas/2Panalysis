@@ -26,7 +26,7 @@ end
 if ~any(ismember(fields(H5),'dilutors0x3Adilutor_00x3Aair_flow'))
     dilution_factor = ones(Ntrial,1);
 else 
-    dilution_factor = 1-round(H5.dilutors0x3Adilutor_00x3Avac_flow./10)./100;
+    dilution_factor = 1-round(H5.dilutors0x3Adilutor_00x3Aair_flow./10)./100;
 end
 rackOdors0 = deblank(string((H5.olfas0x3Aolfa_00x3Aodor)'));
 rackOdors1 = deblank(string((H5.olfas0x3Aolfa_10x3Aodor)'));
@@ -57,16 +57,16 @@ if any(ismember(fields(H5),'olfas0x3Aolfa_20x3Aodor'))
 end
 if sortflow
     if any(ismember(fields(H5),'olfas0x3Aolfa_20x3Aodor'))
-        olfa_odor_ = strcat(rackOdors0,'/',rackOdors1, '/',rackOdors2, ':', num2str(olfa0_flow,'%.3f'),'/',num2str(olfa1_flow,'%.3f'),num2str(olfa2_flow,'%.3f'),' flow', StimID);
+        olfa_odor_ = strcat(rackOdors0,'/',rackOdors1, '/',rackOdors2, ':', num2str(olfa0_flow,'%.3f'),'/',num2str(olfa1_flow,'%.3f'),'/',num2str(olfa2_flow,'%.3f'),'/flow','/', StimID);
     else
-        olfa_odor_ = strcat(rackOdors0,'/',rackOdors1, ':', num2str(olfa0_flow,'%.3f'),'/',num2str(olfa1_flow,'%.3f'),' flow', StimID) ;
+        olfa_odor_ = strcat(rackOdors0,'/',rackOdors1, ':', num2str(olfa0_flow,'%.3f'),'/',num2str(olfa1_flow,'%.3f'),'/flow','/', StimID) ;
     end
 else
     if any(ismember(fields(H5),'olfas0x3Aolfa_20x3Aodor'))
-        olfa_odor_ = strcat(rackOdors0,'/',rackOdors1,'/',rackOdors2, ':', num2str(olfa0_flow,'%.3f'),'/',num2str(olfa1_flow,'%.3f'),'/', num2str(olfa2_flow,'%.3f'),' nM', StimID) ;
+        olfa_odor_ = strcat(rackOdors0,'/',rackOdors1,'/',rackOdors2, ':', num2str(olfa0_flow,'%.3f'),'/',num2str(olfa1_flow,'%.3f'),'/', num2str(olfa2_flow,'%.3f'),'/nM', '/',StimID) ;
 
     else
-        olfa_odor_ = strcat(rackOdors0,'/',rackOdors1, ':', num2str(olfa0_flow,'%.3f'),'/',num2str(olfa1_flow,'%.3f'),' nM', StimID) ;
+        olfa_odor_ = strcat(rackOdors0,'/',rackOdors1, ':', num2str(olfa0_flow,'%.3f'),'/',num2str(olfa1_flow,'%.3f'),'/nM', '/',StimID) ;
 
     end
 end

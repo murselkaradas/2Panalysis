@@ -85,6 +85,26 @@ for i=1:numel(sROI)
         end
         roiMasks(:,:,i)=tmp;
         % close open loop
+    else  
+         ind=sROI{i}.mnCoordinates;
+        
+        %For whatever reasons, ind take values of 0-img_size not 1-img_size.    
+       %replace 0 in index to 1 to avoid errors
+        ind(ind==0)=1;
+        
+        if norm(ind(1,:) - ind(end,:)) > 0
+            ind = [ind; ind(1,:)];
+        end
+        centOfMass(i,:) = [mean(ind(:,2)), mean(ind(:,1))];
+        tmp = poly2mask(ind(:,1),ind(:,2),Ny,Nx);
+        dd= bwconncomp(tmp);
+        if dd.NumObjects==1
+            %tmp=closeOpenROI(tmp);
+        elseif dd.NumObjects>=2
+            tmp=(poly2mask(ind(:,1),ind(:,2),Ny,Nx));
+        end
+        roiMasks(:,:,i)=tmp;
+        % close open loop
     end
 end
 
